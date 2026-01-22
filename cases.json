@@ -1,50 +1,138 @@
 {
-  "poor_case": {
-  "name": "📦 Бомж кейс",
-  "description": "Кейс для самых отчаянных",
+  "adobe_animate_case": {
+  "name": "🎨 Adobe Animate Case",
+  "description": "Шанс выиграть Adobe Animate NFT!",
   "price": 10,
+  "max_opens": 10,
+  "opens_left": 10,
+  "total_opens": 0,
+  "is_limited": true,
   "items": [
     {
       "id": "5_atm",
-      "name": "5 atm",
+      "name": "5 ATM",
+      "rarity": "common",
+      "chance": 45.0
+    },
+    {
+      "id": "8_atm",
+      "name": "8 ATM",
+      "rarity": "common",
+      "chance": 30.0
+    },
+    {
+      "id": "12_atm",
+      "name": "12 ATM",
+      "rarity": "uncommon",
+      "chance": 13.0
+    },
+    {
+      "id": "18_atm",
+      "name": "18 ATM",
+      "rarity": "rare",
+      "chance": 7.0
+    },
+    {
+      "id": "adobe_animate_nft",
+      "name": "Adobe Animate NFT",
+      "rarity": "legendary",
+      "chance": 5.0
+    }
+  ]
+},
+
+"shiba_old_case": {
+  "name": "🐕 Shiba Inu",
+  "description": "Старые добрые NFT из ранних коллекций",
+  "price": 7,
+  "max_opens": 30,
+  "opens_left": 30,
+  "total_opens": 0,
+  "is_limited": true,
+  "items": [
+    {
+      "id": "3_atm",
+      "name": "3 ATM",
       "rarity": "common",
       "chance": 40.0
     },
     {
-      "id": "6_atm",
-      "name": "6 atm",
+      "id": "5_atm",
+      "name": "5 ATM",
       "rarity": "common",
       "chance": 25.0
     },
     {
-      "id": "10_atm",
-      "name": "10 atm",
+      "id": "7_atm",
+      "name": "7 ATM",
       "rarity": "uncommon",
-      "chance": 20.0
+      "chance": 15.0
     },
     {
-      "id": "15_atm",
-      "name": "15 atm",
+      "id": "pixel_shiba_nft",
+      "name": "Pixel Shiba NFT",
       "rarity": "rare",
       "chance": 10.0
     },
     {
-      "id": "20_atm",
-      "name": "20 atm",
+      "id": "atom64_nft",
+      "name": "Atom64 NFT",
       "rarity": "rare",
+      "chance": 7.0
+    },
+    {
+      "id": "atomglide_belarus_nft",
+      "name": "AtomGlide Belarus NFT",
+      "rarity": "legendary",
       "chance": 3.0
+    }
+  ]
+},
+
+"cpp_new_case": {
+  "name": "💻 C++ Новый",
+  "description": "Шанс получить C++ NFT",
+  "price": 30,
+  "max_opens": 10,
+  "opens_left": 10,
+  "total_opens": 0,
+  "is_limited": true,
+  "items": [
+    {
+      "id": "10_atm",
+      "name": "10 ATM",
+      "rarity": "common",
+      "chance": 35.0
     },
     {
-      "id": "pixel_siba_nft",
-      "name": "Pixel Siba NFT",
-      "rarity": "legendary",
-      "chance": 1.0
+      "id": "20_atm",
+      "name": "20 ATM",
+      "rarity": "common",
+      "chance": 30.0
     },
     {
-      "id": "atom_64_nft",
-      "name": "Atom 64 NFT",
+      "id": "30_atm",
+      "name": "30 ATM",
+      "rarity": "uncommon",
+      "chance": 15.0
+    },
+    {
+      "id": "50_atm",
+      "name": "50 ATM",
+      "rarity": "rare",
+      "chance": 10.0
+    },
+    {
+      "id": "80_atm",
+      "name": "80 ATM",
+      "rarity": "epic",
+      "chance": 7.0
+    },
+    {
+      "id": "cpp_nft",
+      "name": "C++ NFT",
       "rarity": "legendary",
-      "chance": 1.0
+      "chance": 3.0
     }
   ]
 },
@@ -53,34 +141,38 @@
   "name": "👨‍💼 Павел Дуров кейс",
   "description": "Шанс выиграть легендарные NFT Дурова",
   "price": 60,
+  "max_opens": 20,
+  "opens_left": 20,
+  "total_opens": 0,
+  "is_limited": true,
   "items": [
     {
       "id": "20_atm",
-      "name": "20 atm",
+      "name": "20 ATM",
       "rarity": "common",
       "chance": 35.0
     },
     {
       "id": "40_atm",
-      "name": "40 atm",
+      "name": "40 ATM",
       "rarity": "common",
       "chance": 25.0
     },
     {
       "id": "60_atm",
-      "name": "60 atm",
+      "name": "60 ATM",
       "rarity": "uncommon",
       "chance": 15.0
     },
     {
       "id": "80_atm",
-      "name": "80 atm",
+      "name": "80 ATM",
       "rarity": "rare",
       "chance": 10.0
     },
     {
       "id": "100_atm",
-      "name": "100 atm",
+      "name": "100 ATM",
       "rarity": "epic",
       "chance": 5.0
     },
@@ -98,4 +190,6 @@
     }
   ]
 }
+}
+
 }
