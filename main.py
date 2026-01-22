@@ -29,14 +29,14 @@ CASES_DB_FILE = 'cases.json'
 WITHDRAWALS_DB_FILE = 'withdrawals.json'
 ADMINS_FILE = 'admins.json'
 PROMOCODES_FILE = 'promocodes.json'
-DEPOSITS_FILE = 'deposits.json'  # Новый файл для вкладов
-SETTINGS_FILE = 'settings.json'  # Новый файл для настроек
+DEPOSITS_FILE = 'deposits.json'
+SETTINGS_FILE = 'settings.json'
 
 # Токен бота (замените на свой)
 BOT_TOKEN = "8148376386:AAHVVNm3Jt4Iqp16ZIAXDzOAI-jV_Ne_hlQ"
 
 # ID админа (замените на свой)
-ADMIN_ID = 6539341659  # Ваш Telegram ID
+ADMIN_ID = 6539341659
 
 # Классы состояний для FSM
 class AdminStates(StatesGroup):
@@ -48,8 +48,9 @@ class AdminStates(StatesGroup):
     waiting_promo_code = State()
     waiting_promo_amount = State()
     waiting_promo_uses = State()
-    waiting_deposit_percent = State()  # Новое состояние для изменения процента
-    waiting_deposit_amount = State()  # Новое состояние для вклада
+    waiting_deposit_percent = State()
+    waiting_deposit_amount = State()
+    waiting_case_quantity = State()  # Новое состояние для ограничения кейсов
 
 class UserWithdrawStates(StatesGroup):
     """Состояния пользователя для вывода"""
@@ -123,7 +124,7 @@ class Database:
         if os.path.exists(ADMINS_FILE):
             with open(ADMINS_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        return [ADMIN_ID]  # По умолчанию основной админ
+        return [ADMIN_ID]
     
     @staticmethod
     def save_admins(admins: List[int]) -> None:
@@ -165,11 +166,10 @@ class Database:
         if os.path.exists(SETTINGS_FILE):
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        # Настройки по умолчанию
         default_settings = {
-            "deposit_percent": 5.0,  # 5% в месяц по умолчанию
-            "min_deposit_amount": 50,  # Минимальная сумма вклада
-            "deposit_enabled": True  # Включены ли вклады
+            "deposit_percent": 5.0,
+            "min_deposit_amount": 50,
+            "deposit_enabled": True
         }
         Database.save_settings(default_settings)
         return default_settings
@@ -181,12 +181,16 @@ class Database:
             json.dump(settings, f, ensure_ascii=False, indent=2)
 
 def init_default_cases():
-    """Инициализировать кейсы по умолчанию"""
+    """Инициализировать кейсы по умолчанию с ограничениями"""
     cases = {
         "common_case": {
             "name": "📦 Обычный кейс",
             "description": "Содержит обычные предметы",
             "price": 100,
+            "max_opens": None,  # None = без ограничений
+            "opens_left": None,  # Сколько осталось открыть
+            "total_opens": 0,  # Сколько уже открыто
+            "is_limited": False,  # Ограниченный ли кейс
             "items": [
                 {"id": "sword_common", "name": "🗡️ Обычный меч", "rarity": "common", "chance": 40.0},
                 {"id": "shield_common", "name": "🛡️ Обычный щит", "rarity": "common", "chance": 35.0},
@@ -199,6 +203,10 @@ def init_default_cases():
             "name": "🎁 Премиум кейс",
             "description": "Шанс получить редкие предметы!",
             "price": 500,
+            "max_opens": 100,  # Можно открыть максимум 100 раз
+            "opens_left": 100,  # Осталось 100 открытий
+            "total_opens": 0,
+            "is_limited": True,
             "items": [
                 {"id": "sword_uncommon", "name": "🗡️ Необычный меч", "rarity": "uncommon", "chance": 35.0},
                 {"id": "shield_uncommon", "name": "🛡️ Необычный щит", "rarity": "uncommon", "chance": 30.0},
@@ -212,6 +220,10 @@ def init_default_cases():
             "name": "👑 Легендарный кейс",
             "description": "Шанс на легендарные предметы!",
             "price": 2000,
+            "max_opens": 50,  # Можно открыть максимум 50 раз
+            "opens_left": 50,  # Осталось 50 открытий
+            "total_opens": 0,
+            "is_limited": True,
             "items": [
                 {"id": "sword_rare", "name": "⚔️ Редкий меч", "rarity": "rare", "chance": 40.0},
                 {"id": "shield_epic", "name": "🛡️ Эпический щит", "rarity": "epic", "chance": 30.0},
@@ -222,11 +234,10 @@ def init_default_cases():
         }
     }
     
-    # Сохраняем кейсы в файл
     with open(CASES_DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(cases, f, ensure_ascii=False, indent=2)
     
-    logger.info("База данных кейсов инициализирована")
+    logger.info("База данных кейсов инициализирована с ограничениями")
 
 def generate_withdrawal_id() -> str:
     """Генерация ID заявки без точек"""
@@ -296,11 +307,11 @@ class UserManager:
         user_data = {
             "user_id": user_id,
             "username": username,
-            "balance": 1000,  # Начальный баланс
-            "deposit_balance": 0,  # Новое поле: баланс на вкладе
-            "total_deposited": 0,  # Новое поле: всего внесено на вклады
-            "total_withdrawn_from_deposit": 0,  # Новое поле: всего выведено с вкладов
-            "deposit_profit": 0,  # Новое поле: прибыль с вкладов
+            "balance": 1000,
+            "deposit_balance": 0,
+            "total_deposited": 0,
+            "total_withdrawn_from_deposit": 0,
+            "deposit_profit": 0,
             "inventory": [],
             "created_at": datetime.now().isoformat(),
             "cases_opened": 0,
@@ -308,7 +319,8 @@ class UserManager:
             "total_withdrawn": 0,
             "used_promocodes": [],
             "items_on_withdrawal": [],
-            "deposits": []  # Новое поле: история вкладов
+            "deposits": [],
+            "opened_cases": {}  # Словарь для отслеживания открытых кейсов
         }
         
         users[str(user_id)] = user_data
@@ -378,7 +390,7 @@ class UserManager:
             record = {
                 "id": f"dep_{int(datetime.now().timestamp())}_{random.randint(1000, 9999)}",
                 "amount": amount,
-                "type": deposit_type,  # deposit, withdraw, profit
+                "type": deposit_type,
                 "date": datetime.now().isoformat(),
                 "balance_after": user["deposit_balance"]
             }
@@ -521,6 +533,22 @@ class UserManager:
             return False
         
         return promocode in user.get("used_promocodes", [])
+    
+    @staticmethod
+    def add_case_opened(user_id: int, case_id: str):
+        """Добавить запись об открытии кейса"""
+        user = UserManager.get_user(user_id)
+        if not user:
+            return
+        
+        if "opened_cases" not in user:
+            user["opened_cases"] = {}
+        
+        if case_id not in user["opened_cases"]:
+            user["opened_cases"][case_id] = 0
+        
+        user["opened_cases"][case_id] += 1
+        UserManager.update_user(user_id, {"opened_cases": user["opened_cases"]})
 
 class DepositManager:
     """Менеджер вкладов"""
@@ -809,15 +837,48 @@ class CaseManager:
         return Database.load_cases()
     
     @staticmethod
-    def open_case(case_id: str, user_id: int) -> Optional[Dict]:
-        """Открыть кейс и получить предмет"""
+    def can_open_case(case_id: str) -> Dict:
+        """Проверить, можно ли открыть кейс (ограничения)"""
         case = CaseManager.get_case(case_id)
         if not case:
-            return None
+            return {"can_open": False, "reason": "Кейс не найден"}
+        
+        # Проверяем ограничение по количеству открытий
+        if case.get("is_limited", False):
+            opens_left = case.get("opens_left", 0)
+            if opens_left <= 0:
+                return {"can_open": False, "reason": "Кейс закончился"}
+        
+        return {"can_open": True, "reason": ""}
+    
+    @staticmethod
+    def update_case_opens(case_id: str):
+        """Обновить счетчик открытий кейса"""
+        cases = Database.load_cases()
+        if case_id in cases:
+            case = cases[case_id]
+            if case.get("is_limited", False):
+                opens_left = case.get("opens_left", 0)
+                if opens_left > 0:
+                    case["opens_left"] = opens_left - 1
+                case["total_opens"] = case.get("total_opens", 0) + 1
+                Database.save_cases(cases)
+    
+    @staticmethod
+    def open_case(case_id: str, user_id: int) -> Optional[Dict]:
+        """Открыть кейс и получить предмет"""
+        # Проверяем ограничения
+        can_open = CaseManager.can_open_case(case_id)
+        if not can_open["can_open"]:
+            return {"error": can_open["reason"]}
+        
+        case = CaseManager.get_case(case_id)
+        if not case:
+            return {"error": "Кейс не найден"}
         
         user = UserManager.get_user(user_id)
         if not user:
-            return None
+            return {"error": "Пользователь не найден"}
         
         if user["balance"] < case["price"]:
             return {"error": "Недостаточно средств"}
@@ -838,13 +899,17 @@ class CaseManager:
         
         if selected_item:
             UserManager.add_to_inventory(user_id, selected_item)
+            UserManager.add_case_opened(user_id, case_id)
             
             user["cases_opened"] = user.get("cases_opened", 0) + 1
             UserManager.update_user(user_id, {"cases_opened": user["cases_opened"]})
             
+            # Обновляем счетчик открытий кейса
+            CaseManager.update_case_opens(case_id)
+            
             return selected_item
         
-        return None
+        return {"error": "Не удалось выбрать предмет"}
 
 class PromoCodeManager:
     """Менеджер промокодов"""
@@ -861,7 +926,7 @@ class PromoCodeManager:
         promocodes = Database.load_promocodes()
         
         while True:
-            promocode = PromoCodeManager.generate_promocode()
+            promocode = PromoCodeManager.generate_promicode()
             if promocode not in promocodes:
                 break
         
@@ -979,7 +1044,7 @@ def get_main_keyboard():
     builder.add(KeyboardButton(text="🎰 Кейсы"))
     builder.add(KeyboardButton(text="🎒 Инвентарь"))
     builder.add(KeyboardButton(text="💰 Баланс"))
-    builder.add(KeyboardButton(text="🏦 Вклады"))  # Новая кнопка
+    builder.add(KeyboardButton(text="🏦 Вклады"))
     builder.add(KeyboardButton(text="🎁 Активировать промокод"))
     builder.add(KeyboardButton(text="🏆 Топ игроков"))
     builder.adjust(2)
@@ -1007,9 +1072,20 @@ def get_admin_panel_keyboard():
     builder.add(InlineKeyboardButton(text="👥 Список пользователей", callback_data="admin_users_list"))
     builder.add(InlineKeyboardButton(text="🎰 Управление кейсами", callback_data="admin_cases"))
     builder.add(InlineKeyboardButton(text="🎁 Управление промокодами", callback_data="admin_promocodes"))
-    builder.add(InlineKeyboardButton(text="🏦 Управление вкладами", callback_data="admin_deposits"))  # Новая кнопка
+    builder.add(InlineKeyboardButton(text="🏦 Управление вкладами", callback_data="admin_deposits"))
     builder.add(InlineKeyboardButton(text="➕ Добавить админа", callback_data="admin_add_admin"))
     builder.add(InlineKeyboardButton(text="🔙 В главное меню", callback_data="admin_back_main"))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_cases_admin_keyboard():
+    """Клавиатура управления кейсами"""
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(text="➕ Создать кейс", callback_data="admin_create_case"))
+    builder.add(InlineKeyboardButton(text="📋 Список кейсов", callback_data="admin_list_cases"))
+    builder.add(InlineKeyboardButton(text="⚙️ Настройки ограничений", callback_data="admin_case_settings"))
+    builder.add(InlineKeyboardButton(text="🔧 Редактировать кейс", callback_data="admin_edit_case"))
+    builder.add(InlineKeyboardButton(text="🔙 В админ-панель", callback_data="admin_back_panel"))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -1052,23 +1128,55 @@ def get_cases_keyboard():
     builder = InlineKeyboardBuilder()
     
     for case_id, case_data in cases.items():
-        builder.add(InlineKeyboardButton(
-            text=f"{case_data['name']} - {case_data['price']} atm",
-            callback_data=f"case_{case_id}"
-        ))
+        # Проверяем ограничения кейса
+        can_open = CaseManager.can_open_case(case_id)
+        if not can_open["can_open"] and case_data.get("is_limited", False):
+            builder.add(InlineKeyboardButton(
+                text=f"⛔ {case_data['name']} - {case_data['price']} atm (Закончился)",
+                callback_data=f"case_{case_id}"
+            ))
+        else:
+            builder.add(InlineKeyboardButton(
+                text=f"{case_data['name']} - {case_data['price']} atm",
+                callback_data=f"case_{case_id}"
+            ))
     
     builder.add(InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main"))
     builder.adjust(1)
     return builder.as_markup()
 
-def get_inventory_keyboard(items):
-    """Клавиатура для инвентаря"""
+def get_case_detail_keyboard(case_id: str, can_open: bool = True):
+    """Клавиатура для детального просмотра кейса"""
+    case = CaseManager.get_case(case_id)
     builder = InlineKeyboardBuilder()
     
-    for idx, item in enumerate(items[:10]):
+    if can_open:
+        builder.add(InlineKeyboardButton(
+            text=f"🎁 Открыть за {case['price']} atm",
+            callback_data=f"open_case_{case_id}"
+        ))
+    else:
+        builder.add(InlineKeyboardButton(
+            text=f"⛔ Недоступно для открытия",
+            callback_data="case_info"
+        ))
+    
+    builder.add(InlineKeyboardButton(text="🔙 Назад к списку", callback_data="back_to_cases"))
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_inventory_keyboard(items, page: int = 0):
+    """Клавиатура для инвентаря с пагинацией"""
+    builder = InlineKeyboardBuilder()
+    items_per_page = 10
+    
+    start_idx = page * items_per_page
+    end_idx = start_idx + items_per_page
+    page_items = items[start_idx:end_idx]
+    
+    for idx, item in enumerate(page_items):
         item_name = item.get('name', 'Неизвестный предмет')[:15]
         rarity = item.get('rarity', 'common')
-        
         is_on_withdrawal = item.get('on_withdrawal', False)
         
         emoji = {
@@ -1082,22 +1190,34 @@ def get_inventory_keyboard(items):
         if is_on_withdrawal:
             emoji = "⏳"
         
+        actual_idx = start_idx + idx
         builder.add(InlineKeyboardButton(
             text=f"{emoji} {item_name}",
-            callback_data=f"item_{idx}"
+            callback_data=f"item_{actual_idx}"
         ))
     
-    if len(items) > 10:
-        builder.add(InlineKeyboardButton(
-            text="📄 Следующая страница",
-            callback_data="inventory_next"
+    # Пагинация
+    pagination_row = []
+    if page > 0:
+        pagination_row.append(InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=f"inventory_page_{page-1}"
         ))
+    
+    if end_idx < len(items):
+        pagination_row.append(InlineKeyboardButton(
+            text="Вперед ▶️",
+            callback_data=f"inventory_page_{page+1}"
+        ))
+    
+    if pagination_row:
+        builder.row(*pagination_row)
     
     builder.add(InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main"))
     builder.adjust(1)
     return builder.as_markup()
 
-def get_item_management_keyboard(item_index: str, item_data: Dict):
+def get_item_management_keyboard(item_index: int, item_data: Dict):
     """Клавиатура управления предметом"""
     builder = InlineKeyboardBuilder()
     
@@ -1270,6 +1390,7 @@ async def handle_deposit_info(callback: CallbackQuery):
     )
     
     await callback.message.edit_text(text, reply_markup=get_deposits_keyboard())
+    await callback.answer()
 
 @dp.callback_query(F.data == "deposit_make")
 async def handle_deposit_make(callback: CallbackQuery, state: FSMContext):
@@ -1288,6 +1409,7 @@ async def handle_deposit_make(callback: CallbackQuery, state: FSMContext):
             "❌ Вклады временно отключены",
             reply_markup=get_deposits_keyboard()
         )
+        await callback.answer()
         return
     
     min_amount = deposit_info.get("min_amount", 100)
@@ -1303,6 +1425,7 @@ async def handle_deposit_make(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(text, reply_markup=get_back_to_admin_keyboard())
     await state.set_state(DepositStates.waiting_deposit_amount)
+    await callback.answer()
 
 @dp.message(DepositStates.waiting_deposit_amount)
 async def handle_deposit_amount_input(message: types.Message, state: FSMContext):
@@ -1346,6 +1469,7 @@ async def handle_deposit_withdraw(callback: CallbackQuery, state: FSMContext):
             "❌ У вас нет средств на вкладе",
             reply_markup=get_deposits_keyboard()
         )
+        await callback.answer()
         return
     
     text = (
@@ -1357,6 +1481,7 @@ async def handle_deposit_withdraw(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(text, reply_markup=get_back_to_admin_keyboard())
     await state.set_state(DepositStates.waiting_withdraw_deposit)
+    await callback.answer()
 
 @dp.message(DepositStates.waiting_withdraw_deposit)
 async def handle_withdraw_deposit_amount(message: types.Message, state: FSMContext):
@@ -1400,11 +1525,11 @@ async def handle_deposit_history(callback: CallbackQuery):
             "📊 У вас еще нет операций по вкладам",
             reply_markup=get_deposits_keyboard()
         )
+        await callback.answer()
         return
     
     text = "📊 История операций по вкладу:\n\n"
     
-    # Показываем последние 10 операций
     for record in deposits[-10:]:
         amount = record["amount"]
         record_type = record["type"]
@@ -1421,6 +1546,7 @@ async def handle_deposit_history(callback: CallbackQuery):
         text += f"🏦 Баланс после: {record.get('balance_after', 0):.2f} atm\n\n"
     
     await callback.message.edit_text(text, reply_markup=get_deposits_keyboard())
+    await callback.answer()
 
 # Обработчики админ-панели для вкладов
 @dp.callback_query(F.data == "admin_deposits")
@@ -1433,7 +1559,6 @@ async def handle_admin_deposits(callback: CallbackQuery):
     settings = DepositManager.get_settings()
     users = Database.load_users()
     
-    # Статистика по вкладам
     total_deposits = sum(user.get("deposit_balance", 0) for user in users.values())
     total_users_with_deposits = sum(1 for user in users.values() if user.get("deposit_balance", 0) > 0)
     total_profit = sum(user.get("deposit_profit", 0) for user in users.values())
@@ -1454,6 +1579,7 @@ async def handle_admin_deposits(callback: CallbackQuery):
     )
     
     await callback.message.edit_text(text, reply_markup=get_deposits_admin_keyboard())
+    await callback.answer()
 
 @dp.callback_query(F.data == "admin_change_percent")
 async def handle_admin_change_percent(callback: CallbackQuery, state: FSMContext):
@@ -1472,6 +1598,7 @@ async def handle_admin_change_percent(callback: CallbackQuery, state: FSMContext
         reply_markup=get_back_to_admin_keyboard()
     )
     await state.set_state(AdminStates.waiting_deposit_percent)
+    await callback.answer()
 
 @dp.message(AdminStates.waiting_deposit_percent)
 async def handle_deposit_percent_input(message: types.Message, state: FSMContext):
@@ -1521,6 +1648,7 @@ async def handle_admin_change_min_amount(callback: CallbackQuery, state: FSMCont
     )
     await state.set_state(AdminStates.waiting_amount)
     await state.update_data(action="change_min_deposit")
+    await callback.answer()
 
 @dp.callback_query(F.data == "admin_toggle_deposits")
 async def handle_admin_toggle_deposits(callback: CallbackQuery):
@@ -1563,7 +1691,6 @@ async def handle_admin_deposits_stats(callback: CallbackQuery):
     users = Database.load_users()
     settings = DepositManager.get_settings()
     
-    # Сортируем пользователей по сумме на вкладе
     users_with_deposits = []
     for user_data in users.values():
         deposit_balance = user_data.get("deposit_balance", 0)
@@ -1604,6 +1731,7 @@ async def handle_admin_deposits_stats(callback: CallbackQuery):
     builder.adjust(1)
     
     await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    await callback.answer()
 
 # Обработчики админ-панели (остальные)
 @dp.callback_query(F.data == "admin_back_panel")
@@ -1613,6 +1741,7 @@ async def handle_admin_back_panel(callback: CallbackQuery):
         "👑 Админ-панель\n\nВыберите действие:",
         reply_markup=get_admin_panel_keyboard()
     )
+    await callback.answer()
 
 @dp.callback_query(F.data == "admin_add_balance")
 async def handle_admin_add_balance(callback: CallbackQuery, state: FSMContext):
@@ -1623,6 +1752,7 @@ async def handle_admin_add_balance(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_back_to_admin_keyboard()
     )
     await state.set_state(AdminStates.waiting_user_id)
+    await callback.answer()
 
 @dp.message(AdminStates.waiting_user_id)
 async def handle_user_id_input(message: types.Message, state: FSMContext):
@@ -1639,7 +1769,6 @@ async def handle_user_id_input(message: types.Message, state: FSMContext):
         action = data.get("action")
         
         if action == "change_min_deposit":
-            # Это для изменения минимальной суммы вклада
             try:
                 min_amount = int(message.text)
                 if min_amount <= 0:
@@ -1709,6 +1838,7 @@ async def handle_admin_withdrawals(callback: CallbackQuery):
             "📋 Нет pending заявок на вывод",
             reply_markup=get_back_to_admin_keyboard()
         )
+        await callback.answer()
         return
     
     text = f"📋 Заявки на вывод ({len(withdrawals)} pending):\n\n"
@@ -1733,6 +1863,7 @@ async def handle_admin_withdrawals(callback: CallbackQuery):
         text,
         reply_markup=get_back_to_admin_keyboard()
     )
+    await callback.answer()
 
 # Обработчик команды для работы с заявкой
 @dp.message(Command(commands=["handlewd"]))
@@ -1796,40 +1927,11 @@ async def handle_withdrawal_command(message: types.Message):
         reply_markup=get_withdrawal_action_keyboard(withdrawal_id)
     )
 
-# Остальные обработчики (промокоды, кейсы, инвентарь и т.д.)
+# Обработчики кейсов
 @dp.message(F.text == "🎰 Кейсы")
 async def handle_cases_button(message: types.Message):
     """Обработчик кнопки Кейсы"""
     await show_cases_menu(message)
-
-@dp.message(F.text == "💰 Баланс")
-async def handle_balance_button(message: types.Message):
-    """Обработчик кнопки Баланс"""
-    await cmd_balance(message)
-
-@dp.message(F.text == "🎒 Инвентарь")
-async def handle_inventory_button(message: types.Message):
-    """Обработчик кнопки Инвентарь"""
-    await show_inventory(message)
-
-@dp.message(F.text == "🎁 Активировать промокод")
-async def handle_activate_promo(message: types.Message, state: FSMContext):
-    """Обработчик кнопки активации промокода"""
-    user_id = message.from_user.id
-    user = UserManager.get_user(user_id)
-    
-    if not user:
-        await message.answer("❌ Сначала используйте /start")
-        return
-    
-    await message.answer(
-        "🎁 Активация промокода\n\n"
-        "Введите промокод:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")]
-        ])
-    )
-    await state.set_state(PromoStates.waiting_promo_code)
 
 async def show_cases_menu(message: types.Message):
     """Показать меню кейсов"""
@@ -1848,18 +1950,220 @@ async def show_cases_menu(message: types.Message):
     
     cases_text = "📦 Доступные кейсы:\n\n"
     for case_id, case_data in cases.items():
-        cases_text += (
-            f"{case_data['name']}\n"
-            f"📝 {case_data['description']}\n"
-            f"💰 Цена: {case_data['price']} atm\n"
-            f"🎁 Предметов: {len(case_data['items'])}\n\n"
-        )
+        # Проверяем ограничения
+        can_open = CaseManager.can_open_case(case_id)
+        if case_data.get("is_limited", False):
+            if can_open["can_open"]:
+                cases_text += f"🔴 {case_data['name']} - {case_data['price']} atm (Осталось: {case_data.get('opens_left', 0)})\n"
+            else:
+                cases_text += f"⛔ {case_data['name']} - ЗАКОНЧИЛСЯ\n"
+        else:
+            cases_text += f"🟢 {case_data['name']} - {case_data['price']} atm\n"
+        
+        cases_text += f"📝 {case_data['description']}\n\n"
     
     cases_text += f"💎 Ваш баланс: {user['balance']} atm"
     
     await message.answer(cases_text, reply_markup=get_cases_keyboard())
 
-async def show_inventory(message: types.Message):
+@dp.callback_query(F.data.startswith("case_"))
+async def handle_case_selection(callback: CallbackQuery):
+    """Показывает информацию о выбранном кейсе"""
+    case_id = callback.data.replace("case_", "")
+    case = CaseManager.get_case(case_id)
+    
+    if not case:
+        await callback.answer("❌ Кейс не найден")
+        return
+    
+    user_id = callback.from_user.id
+    user = UserManager.get_user(user_id)
+    
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+    
+    # Проверяем можно ли открыть кейс
+    can_open_check = CaseManager.can_open_case(case_id)
+    can_open = can_open_check["can_open"]
+    
+    # Формируем текст с информацией о кейсе
+    text = (
+        f"{case['name']}\n"
+        f"{case['description']}\n\n"
+        f"💰 Цена: {case['price']} atm\n"
+        f"🎁 Количество предметов: {len(case['items'])}\n"
+    )
+    
+    # Добавляем информацию об ограничениях
+    if case.get("is_limited", False):
+        opens_left = case.get("opens_left", 0)
+        total_opens = case.get("total_opens", 0)
+        max_opens = case.get("max_opens", 0)
+        
+        if can_open:
+            text += f"📊 Осталось открытий: {opens_left}/{max_opens}\n"
+        else:
+            text += f"⛔ Кейс закончился! Открыто: {total_opens}/{max_opens}\n"
+    else:
+        text += "♾️ Без ограничений\n"
+    
+    text += f"\n📊 Содержимое:\n"
+    
+    # Показываем предметы в кейсе с их шансами
+    rarity_colors = {
+        "common": "⚪ Обычный",
+        "uncommon": "🟢 Необычный",
+        "rare": "🔵 Редкий",
+        "epic": "🟣 Эпический",
+        "legendary": "🟡 Легендарный"
+    }
+    
+    for item in case['items']:
+        rarity_text = rarity_colors.get(item.get('rarity', 'common'), '⚫ Неизвестно')
+        text += f"{rarity_text} {item['name']} - {item['chance']:.1f}%\n"
+    
+    text += f"\n💎 Ваш баланс: {user['balance']} atm"
+    
+    if not can_open and case.get("is_limited", False):
+        text += f"\n\n❌ {can_open_check['reason']}"
+    
+    await callback.message.edit_text(text, reply_markup=get_case_detail_keyboard(case_id, can_open))
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("open_case_"))
+async def handle_open_case(callback: CallbackQuery):
+    """Открывает выбранный кейс"""
+    case_id = callback.data.replace("open_case_", "")
+    user_id = callback.from_user.id
+    
+    # Проверяем, достаточно ли средств
+    user = UserManager.get_user(user_id)
+    case = CaseManager.get_case(case_id)
+    
+    if not user or not case:
+        await callback.answer("❌ Ошибка")
+        return
+    
+    if user["balance"] < case["price"]:
+        await callback.answer(f"❌ Недостаточно средств. Нужно: {case['price']} atm")
+        return
+    
+    # Проверяем ограничения
+    can_open = CaseManager.can_open_case(case_id)
+    if not can_open["can_open"]:
+        await callback.answer(f"❌ {can_open['reason']}")
+        return
+    
+    # Открываем кейс
+    result = CaseManager.open_case(case_id, user_id)
+    
+    if result and "error" not in result:
+        # Успешно открыли кейс
+        rarity_emoji = {
+            "common": "⚪",
+            "uncommon": "🟢",
+            "rare": "🔵",
+            "epic": "🟣",
+            "legendary": "🟡"
+        }.get(result.get("rarity", "common"), "⚫")
+        
+        # Обновляем данные пользователя
+        user = UserManager.get_user(user_id)
+        
+        text = (
+            f"🎉 Вы открыли {case['name']}!\n\n"
+            f"{rarity_emoji} Вы получили: {result['name']}\n"
+            f"📊 Редкость: {result.get('rarity', 'common')}\n"
+            f"🎯 Шанс выпадения: {result.get('chance', 0):.1f}%\n\n"
+            f"💰 Потрачено: {case['price']} atm\n"
+            f"💎 Новый баланс: {user['balance']} atm\n"
+            f"🎒 Предмет добавлен в инвентарь!"
+        )
+        
+        # Обновляем информацию об ограничениях кейса
+        updated_case = CaseManager.get_case(case_id)
+        opens_info = ""
+        if updated_case.get("is_limited", False):
+            opens_left = updated_case.get("opens_left", 0)
+            total_opens = updated_case.get("total_opens", 0)
+            opens_info = f"\n\n📊 Осталось открытий этого кейса: {opens_left}"
+        
+        text += opens_info
+        
+        # Клавиатура после открытия
+        builder = InlineKeyboardBuilder()
+        builder.add(InlineKeyboardButton(
+            text="🎒 Перейти в инвентарь",
+            callback_data="open_inventory"
+        ))
+        builder.add(InlineKeyboardButton(
+            text="🎁 Открыть еще",
+            callback_data=f"case_{case_id}"
+        ))
+        builder.add(InlineKeyboardButton(
+            text="📋 К списку кейсов",
+            callback_data="back_to_cases"
+        ))
+        builder.adjust(1)
+        
+        await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    else:
+        # Ошибка при открытии
+        error_msg = result.get("error", "Неизвестная ошибка") if result else "Неизвестная ошибка"
+        await callback.message.edit_text(
+            f"❌ Не удалось открыть кейс: {error_msg}\n\n"
+            f"Попробуйте еще раз или обратитесь к администратору.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Назад", callback_data=f"case_{case_id}")
+            ]])
+        )
+    
+    await callback.answer()
+
+@dp.callback_query(F.data == "back_to_cases")
+async def handle_back_to_cases(callback: CallbackQuery):
+    """Возвращает к списку кейсов"""
+    user_id = callback.from_user.id
+    user = UserManager.get_user(user_id)
+    
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+    
+    cases = CaseManager.get_all_cases()
+    
+    if not cases:
+        await callback.message.edit_text("❌ Кейсы временно недоступны")
+        await callback.answer()
+        return
+    
+    cases_text = "📦 Доступные кейсы:\n\n"
+    for case_id, case_data in cases.items():
+        # Проверяем ограничения
+        can_open = CaseManager.can_open_case(case_id)
+        if case_data.get("is_limited", False):
+            if can_open["can_open"]:
+                cases_text += f"🔴 {case_data['name']} - {case_data['price']} atm (Осталось: {case_data.get('opens_left', 0)})\n"
+            else:
+                cases_text += f"⛔ {case_data['name']} - ЗАКОНЧИЛСЯ\n"
+        else:
+            cases_text += f"🟢 {case_data['name']} - {case_data['price']} atm\n"
+        
+        cases_text += f"📝 {case_data['description']}\n\n"
+    
+    cases_text += f"💎 Ваш баланс: {user['balance']} atm"
+    
+    await callback.message.edit_text(cases_text, reply_markup=get_cases_keyboard())
+    await callback.answer()
+
+# Обработчики инвентаря
+@dp.message(F.text == "🎒 Инвентарь")
+async def handle_inventory_button(message: types.Message):
+    """Обработчик кнопки Инвентарь"""
+    await show_inventory(message)
+
+async def show_inventory(message: types.Message, page: int = 0):
     """Показать инвентарь"""
     user_id = message.from_user.id
     user = UserManager.get_user(user_id)
@@ -1889,7 +2193,15 @@ async def show_inventory(message: types.Message):
             if item.get('on_withdrawal', False):
                 items_on_withdrawal += 1
     
-    inventory_text = f"🎒 Ваш инвентарь ({len(inventory)} предметов):\n\n"
+    items_per_page = 10
+    total_pages = (len(inventory) + items_per_page - 1) // items_per_page
+    
+    inventory_text = f"🎒 Ваш инвентарь ({len(inventory)} предметов)"
+    
+    if total_pages > 1:
+        inventory_text += f" (Страница {page + 1}/{total_pages})"
+    
+    inventory_text += ":\n\n"
     
     if items_on_withdrawal > 0:
         inventory_text += f"⏳ На выводе: {items_on_withdrawal} предметов\n\n"
@@ -1904,19 +2216,522 @@ async def show_inventory(message: types.Message):
         }.get(rarity, "⚫")
         inventory_text += f"{emoji} {rarity}: {count} шт.\n"
     
-    inventory_text += "\n📦 Последние предметы:\n"
+    inventory_text += "\n📦 Предметы:\n"
+    
+    start_idx = page * items_per_page
+    end_idx = start_idx + items_per_page
     valid_items = [item for item in inventory if isinstance(item, dict)]
-    for item in valid_items[-5:]:
+    
+    for idx, item in enumerate(valid_items[start_idx:end_idx], start=start_idx):
         item_name = item.get('name', 'Неизвестный предмет')
         item_rarity = item.get('rarity', 'common')
+        rarity_emoji = {
+            "common": "⚪",
+            "uncommon": "🟢",
+            "rare": "🔵",
+            "epic": "🟣",
+            "legendary": "🟡"
+        }.get(item_rarity, "⚫")
+        
         if item.get('on_withdrawal', False):
-            inventory_text += f"• {item_name} ({item_rarity}) ⏳\n"
+            inventory_text += f"{idx+1}. {rarity_emoji} {item_name} ({item_rarity}) ⏳\n"
         else:
-            inventory_text += f"• {item_name} ({item_rarity})\n"
+            inventory_text += f"{idx+1}. {rarity_emoji} {item_name} ({item_rarity})\n"
     
-    await message.answer(inventory_text, reply_markup=get_inventory_keyboard(valid_items))
+    await message.answer(inventory_text, reply_markup=get_inventory_keyboard(valid_items, page))
 
-# ... (остальные обработчики остаются без изменений, как в предыдущем коде)
+@dp.callback_query(F.data.startswith("inventory_page_"))
+async def handle_inventory_page(callback: CallbackQuery):
+    """Обработчик переключения страниц инвентаря"""
+    page = int(callback.data.replace("inventory_page_", ""))
+    user_id = callback.from_user.id
+    
+    if page < 0:
+        await callback.answer("❌ Это первая страница")
+        return
+    
+    user = UserManager.get_user(user_id)
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+    
+    inventory = user.get("inventory", [])
+    items_per_page = 10
+    total_pages = (len(inventory) + items_per_page - 1) // items_per_page
+    
+    if page >= total_pages:
+        await callback.answer("❌ Это последняя страница")
+        return
+    
+    await show_inventory_callback(callback, page)
+
+async def show_inventory_callback(callback: CallbackQuery, page: int = 0):
+    """Показать инвентарь через callback"""
+    user_id = callback.from_user.id
+    user = UserManager.get_user(user_id)
+    
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+    
+    inventory = user.get("inventory", [])
+    
+    if not inventory:
+        await callback.message.edit_text(
+            "🎒 Ваш инвентарь пуст\n"
+            "📦 Откройте кейсы, чтобы получить предметы!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🎰 К кейсам", callback_data="back_to_cases"),
+                InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_main")
+            ]])
+        )
+        await callback.answer()
+        return
+    
+    rarity_count = {}
+    items_on_withdrawal = 0
+    
+    for item in inventory:
+        if isinstance(item, dict):
+            rarity = item.get("rarity", "unknown")
+            rarity_count[rarity] = rarity_count.get(rarity, 0) + 1
+            
+            if item.get('on_withdrawal', False):
+                items_on_withdrawal += 1
+    
+    items_per_page = 10
+    total_pages = (len(inventory) + items_per_page - 1) // items_per_page
+    
+    inventory_text = f"🎒 Ваш инвентарь ({len(inventory)} предметов)"
+    
+    if total_pages > 1:
+        inventory_text += f" (Страница {page + 1}/{total_pages})"
+    
+    inventory_text += ":\n\n"
+    
+    if items_on_withdrawal > 0:
+        inventory_text += f"⏳ На выводе: {items_on_withdrawal} предметов\n\n"
+    
+    for rarity, count in rarity_count.items():
+        emoji = {
+            "common": "⚪",
+            "uncommon": "🟢",
+            "rare": "🔵",
+            "epic": "🟣",
+            "legendary": "🟡"
+        }.get(rarity, "⚫")
+        inventory_text += f"{emoji} {rarity}: {count} шт.\n"
+    
+    inventory_text += "\n📦 Предметы:\n"
+    
+    start_idx = page * items_per_page
+    end_idx = start_idx + items_per_page
+    valid_items = [item for item in inventory if isinstance(item, dict)]
+    
+    for idx, item in enumerate(valid_items[start_idx:end_idx], start=start_idx):
+        item_name = item.get('name', 'Неизвестный предмет')
+        item_rarity = item.get('rarity', 'common')
+        rarity_emoji = {
+            "common": "⚪",
+            "uncommon": "🟢",
+            "rare": "🔵",
+            "epic": "🟣",
+            "legendary": "🟡"
+        }.get(item_rarity, "⚫")
+        
+        if item.get('on_withdrawal', False):
+            inventory_text += f"{idx+1}. {rarity_emoji} {item_name} ({item_rarity}) ⏳\n"
+        else:
+            inventory_text += f"{idx+1}. {rarity_emoji} {item_name} ({item_rarity})\n"
+    
+    await callback.message.edit_text(inventory_text, reply_markup=get_inventory_keyboard(valid_items, page))
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("item_"))
+async def handle_select_item(callback: CallbackQuery):
+    """Обработчик выбора предмета из инвентаря"""
+    item_index = int(callback.data.replace("item_", ""))
+    user_id = callback.from_user.id
+    
+    item = UserManager.get_item_by_index(user_id, item_index)
+    
+    if not item:
+        await callback.answer("❌ Предмет не найден")
+        return
+    
+    item_name = item.get('name', 'Неизвестный предмет')
+    rarity = item.get('rarity', 'common')
+    received_at = item.get('received_at', '')
+    
+    rarity_emoji = {
+        "common": "⚪",
+        "uncommon": "🟢",
+        "rare": "🔵",
+        "epic": "🟣",
+        "legendary": "🟡"
+    }.get(rarity, "⚫")
+    
+    rarity_text = {
+        "common": "Обычный",
+        "uncommon": "Необычный",
+        "rare": "Редкий",
+        "epic": "Эпический",
+        "legendary": "Легендарный"
+    }.get(rarity, "Неизвестно")
+    
+    text = (
+        f"{rarity_emoji} {item_name}\n"
+        f"📊 Редкость: {rarity_text}\n"
+        f"📅 Получен: {received_at[:10] if received_at else 'Неизвестно'}\n"
+    )
+    
+    if item.get('chance'):
+        text += f"🎯 Шанс выпадения: {item['chance']:.1f}%\n"
+    
+    if item.get('on_withdrawal', False):
+        text += "⏳ Статус: На выводе\n"
+    
+    text += f"\n🆔 ID: {item.get('item_id', 'Без ID')}"
+    
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_item_management_keyboard(item_index, item)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("withdraw_"))
+async def handle_withdraw_item(callback: CallbackQuery, state: FSMContext):
+    """Обработчик вывода предмета"""
+    item_index = int(callback.data.replace("withdraw_", ""))
+    user_id = callback.from_user.id
+    
+    item = UserManager.get_item_by_index(user_id, item_index)
+    
+    if not item:
+        await callback.answer("❌ Предмет не найден")
+        return
+    
+    # Проверяем, не на выводе ли уже предмет
+    if UserManager.is_item_on_withdrawal(user_id, item.get('item_id', '')):
+        await callback.answer("❌ Этот предмет уже на выводе")
+        return
+    
+    await state.update_data(item_index=item_index, item_id=item.get('item_id'))
+    
+    text = (
+        "📤 Вывод предмета\n\n"
+        f"🎁 Предмет: {item.get('name', 'Неизвестный предмет')}\n"
+        f"📊 Редкость: {item.get('rarity', 'common')}\n\n"
+        "Для вывода предмета необходимо указать контактную информацию "
+        "(например, ссылку на телеграм, номер кошелька и т.д.):\n\n"
+        "Введите ваши контактные данные:"
+    )
+    
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(text="🔙 Назад", callback_data=f"item_{item_index}"))
+    builder.adjust(1)
+    
+    await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    await state.set_state(UserWithdrawStates.waiting_contact_info)
+    await callback.answer()
+
+@dp.message(UserWithdrawStates.waiting_contact_info)
+async def handle_withdraw_contact_info(message: types.Message, state: FSMContext):
+    """Обработка контактной информации для вывода"""
+    contact_info = message.text.strip()
+    data = await state.get_data()
+    item_index = data.get('item_index')
+    user_id = message.from_user.id
+    
+    item = UserManager.get_item_by_index(user_id, item_index)
+    
+    if not item:
+        await message.answer("❌ Предмет не найден")
+        await state.clear()
+        return
+    
+    if not contact_info:
+        await message.answer("❌ Контактная информация не может быть пустой. Попробуйте еще раз:")
+        return
+    
+    # Создаем заявку на вывод
+    withdrawal_id = WithdrawalManager.create_withdrawal(user_id, item, contact_info)
+    
+    if withdrawal_id:
+        text = (
+            "✅ Заявка на вывод создана!\n\n"
+            f"🎁 Предмет: {item.get('name', 'Неизвестный предмет')}\n"
+            f"📞 Контакты: {contact_info}\n"
+            f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"📋 ID заявки: {withdrawal_id}\n\n"
+            "Администратор рассмотрит вашу заявку в ближайшее время. "
+            "Статус заявки можно отслеживать."
+        )
+    else:
+        text = "❌ Не удалось создать заявку на вывод. Предмет уже на выводе."
+    
+    await message.answer(text, reply_markup=get_main_keyboard())
+    await state.clear()
+
+@dp.callback_query(F.data.startswith("delete_"))
+async def handle_delete_item(callback: CallbackQuery):
+    """Обработчик удаления предмета"""
+    item_index = int(callback.data.replace("delete_", ""))
+    user_id = callback.from_user.id
+    
+    item = UserManager.get_item_by_index(user_id, item_index)
+    
+    if not item:
+        await callback.answer("❌ Предмет не найден")
+        return
+    
+    # Проверяем, не на выводе ли предмет
+    if UserManager.is_item_on_withdrawal(user_id, item.get('item_id', '')):
+        await callback.answer("❌ Нельзя удалить предмет, который на выводе")
+        return
+    
+    # Удаляем предмет
+    removed_item = UserManager.remove_from_inventory(user_id, item.get('item_id', str(item_index)))
+    
+    if removed_item:
+        text = f"🗑️ Предмет '{removed_item.get('name', 'Неизвестный предмет')}' удален из инвентаря."
+    else:
+        text = "❌ Не удалось удалить предмет."
+    
+    await callback.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🎒 В инвентарь", callback_data="open_inventory"),
+            InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_main")
+        ]])
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "open_inventory")
+async def handle_open_inventory(callback: CallbackQuery):
+    """Открывает инвентарь"""
+    await show_inventory_callback(callback, 0)
+
+# Промокоды
+@dp.message(F.text == "🎁 Активировать промокод")
+async def handle_activate_promo(message: types.Message, state: FSMContext):
+    """Обработчик кнопки активации промокода"""
+    user_id = message.from_user.id
+    user = UserManager.get_user(user_id)
+    
+    if not user:
+        await message.answer("❌ Сначала используйте /start")
+        return
+    
+    await message.answer(
+        "🎁 Активация промокода\n\n"
+        "Введите промокод:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")
+        ]])
+    )
+    await state.set_state(PromoStates.waiting_promo_code)
+
+@dp.message(PromoStates.waiting_promo_code)
+async def handle_promo_code_input(message: types.Message, state: FSMContext):
+    """Обработка ввода промокода"""
+    promocode = message.text.strip()
+    user_id = message.from_user.id
+    
+    if not promocode:
+        await message.answer("❌ Промокод не может быть пустым. Попробуйте еще раз:")
+        return
+    
+    result = PromoCodeManager.activate_promocode(user_id, promocode)
+    
+    if result["success"]:
+        await message.answer(
+            result["message"],
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        await message.answer(
+            result["message"] + "\n\nПопробуйте другой промокод:"
+        )
+        return
+    
+    await state.clear()
+
+# Обработчики для админ-управления кейсами
+@dp.callback_query(F.data == "admin_cases")
+async def handle_admin_cases(callback: CallbackQuery):
+    """Управление кейсами в админ-панели"""
+    if not AdminManager.is_admin(callback.from_user.id):
+        await callback.answer("⛔ У вас нет прав доступа")
+        return
+    
+    cases = CaseManager.get_all_cases()
+    
+    total_cases = len(cases)
+    limited_cases = sum(1 for case in cases.values() if case.get("is_limited", False))
+    total_opens = sum(case.get("total_opens", 0) for case in cases.values())
+    
+    text = (
+        "🎰 Управление кейсами\n\n"
+        f"📦 Всего кейсов: {total_cases}\n"
+        f"🔴 Ограниченных: {limited_cases}\n"
+        f"📊 Всего открытий: {total_opens}\n\n"
+        "Выберите действие:"
+    )
+    
+    await callback.message.edit_text(text, reply_markup=get_cases_admin_keyboard())
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin_case_settings")
+async def handle_admin_case_settings(callback: CallbackQuery, state: FSMContext):
+    """Настройки ограничений кейсов"""
+    if not AdminManager.is_admin(callback.from_user.id):
+        await callback.answer("⛔ У вас нет прав доступа")
+        return
+    
+    cases = CaseManager.get_all_cases()
+    
+    text = "⚙️ Настройки ограничений кейсов\n\n"
+    text += "Введите ID кейса для изменения ограничений:\n\n"
+    
+    for case_id, case_data in cases.items():
+        if case_data.get("is_limited", False):
+            opens_left = case_data.get("opens_left", 0)
+            total_opens = case_data.get("total_opens", 0)
+            max_opens = case_data.get("max_opens", 0)
+            text += f"🔴 {case_id} - {case_data['name']} (Осталось: {opens_left}/{max_opens}, Открыто: {total_opens})\n"
+        else:
+            text += f"🟢 {case_id} - {case_data['name']} (Без ограничений)\n"
+    
+    await callback.message.edit_text(text, reply_markup=get_back_to_admin_keyboard())
+    await state.set_state(AdminStates.waiting_case_data)
+    await state.update_data(action="case_quantity")
+    await callback.answer()
+
+@dp.message(AdminStates.waiting_case_data)
+async def handle_case_data_input(message: types.Message, state: FSMContext):
+    """Обработка ввода данных для кейса"""
+    data = await state.get_data()
+    action = data.get("action")
+    
+    if action == "case_quantity":
+        # Изменение ограничений кейса
+        case_id = message.text.strip()
+        case = CaseManager.get_case(case_id)
+        
+        if not case:
+            await message.answer("❌ Кейс не найден. Попробуйте еще раз:")
+            return
+        
+        await state.update_data(case_id=case_id)
+        
+        if case.get("is_limited", False):
+            opens_left = case.get("opens_left", 0)
+            max_opens = case.get("max_opens", 0)
+            await message.answer(
+                f"🔴 Кейс: {case['name']}\n"
+                f"Текущие ограничения: {opens_left}/{max_opens}\n\n"
+                "Введите новое максимальное количество открытий (0 для снятия ограничений):"
+            )
+        else:
+            await message.answer(
+                f"🟢 Кейс: {case['name']}\n"
+                "Текущие ограничения: Без ограничений\n\n"
+                "Введите максимальное количество открытий (0 для сохранения без ограничений):"
+            )
+        
+        await state.set_state(AdminStates.waiting_case_quantity)
+    elif action == "edit_case":
+        # Редактирование кейса (можно расширить)
+        await message.answer("Функция редактирования кейса в разработке")
+        await state.clear()
+
+@dp.message(AdminStates.waiting_case_quantity)
+async def handle_case_quantity_input(message: types.Message, state: FSMContext):
+    """Обработка ввода количества открытий для кейса"""
+    try:
+        max_opens = int(message.text)
+        data = await state.get_data()
+        case_id = data.get("case_id")
+        
+        cases = Database.load_cases()
+        if case_id not in cases:
+            await message.answer("❌ Кейс не найден")
+            await state.clear()
+            return
+        
+        case = cases[case_id]
+        
+        if max_opens <= 0:
+            # Снимаем ограничения
+            case["is_limited"] = False
+            case["max_opens"] = None
+            case["opens_left"] = None
+            await message.answer(f"✅ Ограничения сняты с кейса {case['name']}")
+        else:
+            # Устанавливаем новые ограничения
+            current_total_opens = case.get("total_opens", 0)
+            opens_left = max_opens - current_total_opens
+            
+            if opens_left < 0:
+                opens_left = 0
+            
+            case["is_limited"] = True
+            case["max_opens"] = max_opens
+            case["opens_left"] = opens_left
+            
+            await message.answer(
+                f"✅ Ограничения установлены для кейса {case['name']}\n\n"
+                f"📊 Максимум открытий: {max_opens}\n"
+                f"📈 Осталось открытий: {opens_left}\n"
+                f"📊 Уже открыто: {current_total_opens}"
+            )
+        
+        Database.save_cases(cases)
+        await state.clear()
+        
+    except ValueError:
+        await message.answer("❌ Неверный формат. Введите число:")
+
+# Основные обработчики callback
+@dp.callback_query(F.data == "back_to_main")
+async def handle_back_to_main(callback: CallbackQuery):
+    """Возврат в главное меню"""
+    user_id = callback.from_user.id
+    user = UserManager.get_user(user_id)
+    
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+    
+    if AdminManager.is_admin(user_id):
+        await callback.message.edit_text(
+            "🎮 Главное меню\n\nВыберите действие:",
+            reply_markup=get_admin_keyboard()
+        )
+    else:
+        await callback.message.edit_text(
+            "🎮 Главное меню\n\nВыберите действие:",
+            reply_markup=get_main_keyboard()
+        )
+    await callback.answer()
+
+@dp.callback_query(F.data == "admin_back_main")
+async def handle_admin_back_main(callback: CallbackQuery):
+    """Возврат из админ-панели в главное меню"""
+    user_id = callback.from_user.id
+    
+    if AdminManager.is_admin(user_id):
+        await callback.message.edit_text(
+            "👑 Админ-панель\n\nВыберите действие:",
+            reply_markup=get_admin_keyboard()
+        )
+    else:
+        await callback.message.edit_text(
+            "🎮 Главное меню\n\nВыберите действие:",
+            reply_markup=get_main_keyboard()
+        )
+    await callback.answer()
 
 @dp.message(F.text == "🏆 Топ игроков")
 async def handle_top_players(message: types.Message):
@@ -2012,7 +2827,7 @@ async def handle_stats(message: types.Message):
     
     await message.answer(text)
 
-# Команда для тестирования
+# Команды для тестирования
 @dp.message(Command("add_money"))
 async def cmd_add_money(message: types.Message):
     """Добавить деньги для тестирования"""
@@ -2043,11 +2858,9 @@ async def main():
             if file == ADMINS_FILE:
                 Database.save_admins([ADMIN_ID])
             elif file == SETTINGS_FILE:
-                # Создаем настройки по умолчанию
                 Database.load_settings()
                 logger.info("Созданы настройки по умолчанию")
             elif file == DEPOSITS_FILE:
-                # Создаем пустой файл вкладов
                 with open(file, 'w', encoding='utf-8') as f:
                     json.dump({}, f, ensure_ascii=False, indent=2)
                 logger.info("Создан файл вкладов")
@@ -2077,49 +2890,3 @@ if __name__ == "__main__":
         print(f"   ADMIN_ID = {ADMIN_ID}")
     else:
         asyncio.run(main())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
