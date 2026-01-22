@@ -307,7 +307,7 @@ class UserManager:
         user_data = {
             "user_id": user_id,
             "username": username,
-            "balance": 1000,
+            "balance": 0,
             "deposit_balance": 0,
             "total_deposited": 0,
             "total_withdrawn_from_deposit": 0,
@@ -2890,3 +2890,4 @@ if __name__ == "__main__":
         print(f"   ADMIN_ID = {ADMIN_ID}")
     else:
         asyncio.run(main())
+
