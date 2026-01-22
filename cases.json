@@ -1,0 +1,101 @@
+{
+  "poor_case": {
+  "name": "📦 Бомж кейс",
+  "description": "Кейс для самых отчаянных",
+  "price": 10,
+  "items": [
+    {
+      "id": "5_atm",
+      "name": "5 atm",
+      "rarity": "common",
+      "chance": 40.0
+    },
+    {
+      "id": "6_atm",
+      "name": "6 atm",
+      "rarity": "common",
+      "chance": 25.0
+    },
+    {
+      "id": "10_atm",
+      "name": "10 atm",
+      "rarity": "uncommon",
+      "chance": 20.0
+    },
+    {
+      "id": "15_atm",
+      "name": "15 atm",
+      "rarity": "rare",
+      "chance": 10.0
+    },
+    {
+      "id": "20_atm",
+      "name": "20 atm",
+      "rarity": "rare",
+      "chance": 3.0
+    },
+    {
+      "id": "pixel_siba_nft",
+      "name": "Pixel Siba NFT",
+      "rarity": "legendary",
+      "chance": 1.0
+    },
+    {
+      "id": "atom_64_nft",
+      "name": "Atom 64 NFT",
+      "rarity": "legendary",
+      "chance": 1.0
+    }
+  ]
+},
+
+"durov_case": {
+  "name": "👨‍💼 Павел Дуров кейс",
+  "description": "Шанс выиграть легендарные NFT Дурова",
+  "price": 60,
+  "items": [
+    {
+      "id": "20_atm",
+      "name": "20 atm",
+      "rarity": "common",
+      "chance": 35.0
+    },
+    {
+      "id": "40_atm",
+      "name": "40 atm",
+      "rarity": "common",
+      "chance": 25.0
+    },
+    {
+      "id": "60_atm",
+      "name": "60 atm",
+      "rarity": "uncommon",
+      "chance": 15.0
+    },
+    {
+      "id": "80_atm",
+      "name": "80 atm",
+      "rarity": "rare",
+      "chance": 10.0
+    },
+    {
+      "id": "100_atm",
+      "name": "100 atm",
+      "rarity": "epic",
+      "chance": 5.0
+    },
+    {
+      "id": "pixel_durov_nft",
+      "name": "Pixel Durov NFT",
+      "rarity": "legendary",
+      "chance": 6.0
+    },
+    {
+      "id": "pavel_durov_nft",
+      "name": "Pavel Durov NFT",
+      "rarity": "mythical",
+      "chance": 4.0
+    }
+  ]
+}
+}

@@ -1,0 +1,15 @@
+{
+  "FBRR42ZB": {
+    "code": "FBRR42ZB",
+    "amount": 5,
+    "max_uses": 10,
+    "used_count": 1,
+    "used_by": [
+      6539341659
+    ],
+    "created_at": "2025-12-29T23:22:35.820879",
+    "creator_id": 6539341659,
+    "is_active": true,
+    "last_used": "2025-12-29T23:23:26.892265"
+  }
+}
