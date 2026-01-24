@@ -773,11 +773,11 @@ class WithdrawalManager:
                     user = UserManager.get_user(user_id)
                     if user:
                         item_value = {
-                            "common": 50,
-                            "uncommon": 100,
-                            "rare": 500,
-                            "epic": 2000,
-                            "legendary": 10000
+                            "common": 0,
+                            "uncommon": 0,
+                            "rare": 0,
+                            "epic": 0,
+                            "legendary": 0
                         }.get(withdrawal["item"].get("rarity", "common"), 0)
                         
                         user["total_withdrawn"] = user.get("total_withdrawn", 0) + item_value
@@ -2832,9 +2832,9 @@ async def handle_stats(message: types.Message):
 async def cmd_add_money(message: types.Message):
     """Добавить деньги для тестирования"""
     user_id = message.from_user.id
-    UserManager.add_balance(user_id, 1000)
+    UserManager.add_balance(user_id, 0)
     user = UserManager.get_user(user_id)
-    await message.answer(f"✅ Добавлено 1000 atm. Новый баланс: {user['balance']}")
+    await message.answer(f"✅ Добавлено 0 atm. Новый баланс: {user['balance']}")
 
 @dp.message(Command("accrue_profit"))
 async def cmd_accrue_profit(message: types.Message):
@@ -2890,4 +2890,5 @@ if __name__ == "__main__":
         print(f"   ADMIN_ID = {ADMIN_ID}")
     else:
         asyncio.run(main())
+
 
