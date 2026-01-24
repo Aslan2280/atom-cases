@@ -1,1 +1,154 @@
+{
+  "6539341659": {
+    "user_id": 6539341659,
+    "username": "propepka",
+    "balance": 930,
+    "deposit_balance": 0,
+    "total_deposited": 0,
+    "total_withdrawn_from_deposit": 0,
+    "deposit_profit": 0,
+    "inventory": [
+      {
+        "name": "10 ATM",
+        "rarity": "common",
+        "id": "10_atm",
+        "item_id": "item_1769107466.720288_4102",
+        "received_at": "2026-01-22T18:44:26.720311",
+        "chance": 35.0,
+        "original_id": "10_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "10 ATM",
+        "rarity": "common",
+        "id": "10_atm",
+        "item_id": "item_1769107475.48081_1814",
+        "received_at": "2026-01-22T18:44:35.480826",
+        "chance": 35.0,
+        "original_id": "10_atm",
+        "on_withdrawal": true
+      },
+      {
+        "name": "8 ATM",
+        "rarity": "common",
+        "id": "8_atm",
+        "item_id": "item_1769255632.047229_2453",
+        "received_at": "2026-01-24T11:53:52.047242",
+        "chance": 30.0,
+        "original_id": "8_atm",
+        "on_withdrawal": false
+      }
+    ],
+    "created_at": "2026-01-22T18:35:49.533233",
+    "cases_opened": 3,
+    "withdrawals_count": 1,
+    "total_withdrawn": 0,
+    "used_promocodes": [],
+    "items_on_withdrawal": [
+      "item_1769107475.48081_1814"
+    ],
+    "deposits": [],
+    "opened_cases": {
+      "cpp_new_case": 2,
+      "adobe_animate_case": 1
+    }
+  },
+  "1396173285": {
+    "user_id": 1396173285,
+    "username": "chistdev",
+    "balance": 0,
+    "deposit_balance": 0,
+    "total_deposited": 0,
+    "total_withdrawn_from_deposit": 0,
+    "deposit_profit": 0,
+    "inventory": [
+      {
+        "name": "60 ATM",
+        "rarity": "uncommon",
+        "id": "60_atm",
+        "item_id": "item_1769116065.570193_1075",
+        "received_at": "2026-01-22T21:07:45.570210",
+        "chance": 15.0,
+        "original_id": "60_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "7 ATM",
+        "rarity": "uncommon",
+        "id": "7_atm",
+        "item_id": "item_1769116074.31796_3445",
+        "received_at": "2026-01-22T21:07:54.317970",
+        "chance": 15.0,
+        "original_id": "7_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "5 ATM",
+        "rarity": "common",
+        "id": "5_atm",
+        "item_id": "item_1769116079.640083_2666",
+        "received_at": "2026-01-22T21:07:59.640094",
+        "chance": 45.0,
+        "original_id": "5_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "5 ATM",
+        "rarity": "common",
+        "id": "5_atm",
+        "item_id": "item_1769116083.828309_1347",
+        "received_at": "2026-01-22T21:08:03.828320",
+        "chance": 45.0,
+        "original_id": "5_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "8 ATM",
+        "rarity": "common",
+        "id": "8_atm",
+        "item_id": "item_1769116086.595067_6284",
+        "received_at": "2026-01-22T21:08:06.595078",
+        "chance": 30.0,
+        "original_id": "8_atm",
+        "on_withdrawal": true
+      },
+      {
+        "name": "8 ATM",
+        "rarity": "common",
+        "id": "8_atm",
+        "item_id": "item_1769255178.311742_8844",
+        "received_at": "2026-01-24T11:46:18.311755",
+        "chance": 30.0,
+        "original_id": "8_atm",
+        "on_withdrawal": false
+      },
+      {
+        "name": "5 ATM",
+        "rarity": "common",
+        "id": "5_atm",
+        "item_id": "item_1769255184.986035_7051",
+        "received_at": "2026-01-24T11:46:24.986046",
+        "chance": 25.0,
+        "original_id": "5_atm",
+        "on_withdrawal": false
+      }
+    ],
+    "created_at": "2026-01-22T18:38:08.755188",
+    "cases_opened": 7,
+    "withdrawals_count": 1,
+    "total_withdrawn": 0,
+    "used_promocodes": [
+      "ATOM13"
+    ],
+    "items_on_withdrawal": [
+      "item_1769116086.595067_6284"
+    ],
+    "deposits": [],
+    "opened_cases": {
+      "durov_case": 1,
+      "shiba_old_case": 2,
+      "adobe_animate_case": 4
+    }
+  }
+}
 
