@@ -12,18 +12,18 @@
     "is_active": true,
     "last_used": "2025-12-29T23:23:26.892265"
   },
-
-  "START2026": {
-    "code": "START2026",
-    "amount": 7,
+  "ATOM13": {
+    "code": "ATOM13",
+    "amount": 14,
     "max_uses": 2,
-    "used_count": 0,
+    "used_count": 2,
     "used_by": [
+      1396173285,
+      6773924383
     ],
     "created_at": "2025-12-29T23:22:35.820879",
     "creator_id": 6539341659,
     "is_active": true,
-    "last_used": "2025-12-29T23:23:26.892265"
+    "last_used": "2026-01-24T13:09:02.416960"
   }
-
 }
