@@ -1,5 +1,5 @@
 {
   "deposit_percent": 5.0,
-  "min_deposit_amount": 50,
+  "min_deposit_amount": 10,
   "deposit_enabled": true
 }
