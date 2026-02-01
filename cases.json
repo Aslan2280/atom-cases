@@ -4,7 +4,7 @@
     "description": "Шанс выиграть Adobe Animate NFT!",
     "price": 10,
     "max_opens": 25,
-    "opens_left": 25,
+    "opens_left": 20,
     "total_opens": 0,
     "is_limited": true,
     "items": [
@@ -46,7 +46,7 @@
     "description": "Шанс получить легендарный C++ NFT",
     "price": 30,
     "max_opens": 10,
-    "opens_left": 10,
+    "opens_left": 8,
     "total_opens": 0,
     "is_limited": true,
     "items": [
@@ -94,7 +94,7 @@
     "description": "Старые добрые NFT из ранних коллекций",
     "price": 7,
     "max_opens": 50,
-    "opens_left": 50,
+    "opens_left": 48,
     "total_opens": 0,
     "is_limited": true,
     "items": [
@@ -142,7 +142,7 @@
     "description": "Шанс выиграть легендарные NFT Дурова",
     "price": 60,
     "max_opens": 20,
-    "opens_left": 20,
+    "opens_left": 19,
     "total_opens": 0,
     "is_limited": true,
     "items": [
