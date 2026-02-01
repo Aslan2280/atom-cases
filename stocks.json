@@ -1,0 +1,26 @@
+{
+  "ATM": {
+    "name": "ATOM CASES",
+    "price": 5.97,
+    "change": -0.49,
+    "shares": 1500,
+    "sector": "Оффициальный партнёр в экосистеме Атома",
+    "volatility": 3.0
+  },
+  "67MRKT": {
+    "name": "67 MARKET",
+    "price": 9.68,
+    "change": -3.23,
+    "shares": 2000,
+    "sector": "Является маркетом №1 в экосистеме Атома. Является нашим партнёром.",
+    "volatility": 4.0
+  },
+  "CHIST": {
+    "name": "CHIST",
+    "price": 10.22,
+    "change": 1.61,
+    "shares": 3000,
+    "sector": "НЕТУ",
+    "volatility": 3.0
+  }
+}
